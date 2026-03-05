@@ -1,0 +1,10 @@
+streamlit>=1.28.0
+nibabel>=4.0.0
+numpy>=1.21.0
+pandas>=1.3.0
+scikit-survival>=0.21.0
+scikit-learn>=1.0.0
+matplotlib>=3.5.0
+scipy>=1.7.0
+joblib>=1.0.0
+TotalSegmentator>=2.0.0
