@@ -330,21 +330,37 @@ if run_button:
     with col_os:
         rg_os = os_res.get("risk_group", "—")
         cls_os = "risk-high" if rg_os == "High" else ("risk-low" if rg_os == "Low" else "risk-na")
-        st.markdown(f'<div class="section-card"><h3>Overall Survival (OS)</h3><p><span class="risk-badge {cls_os}">{rg_os}</span></p>', unsafe_allow_html=True)
+        st.markdown(f'<div class="section-card"><h3>Overall Survival (OS)</h3><p><span class="risk-badge {cls_os}">{rg_os} Risk</span></p>', unsafe_allow_html=True)
         if os_res.get("risk_score") is not None:
-            st.caption(f"Risk score: {os_res['risk_score']:.4f}")
+            st.markdown(f"**Risk score: {os_res['risk_score']:.4f}** &nbsp;(cutoff = 3.88)")
         if os_res.get("error"):
             st.warning(os_res["error"])
         st.markdown("</div>", unsafe_allow_html=True)
     with col_pfs:
         rg_pfs = pfs_res.get("risk_group", "—")
         cls_pfs = "risk-high" if rg_pfs == "High" else ("risk-low" if rg_pfs == "Low" else "risk-na")
-        st.markdown(f'<div class="section-card"><h3>Progression-Free Survival (PFS)</h3><p><span class="risk-badge {cls_pfs}">{rg_pfs}</span></p>', unsafe_allow_html=True)
+        st.markdown(f'<div class="section-card"><h3>Progression-Free Survival (PFS)</h3><p><span class="risk-badge {cls_pfs}">{rg_pfs} Risk</span></p>', unsafe_allow_html=True)
         if pfs_res.get("risk_score") is not None:
-            st.caption(f"Risk score: {pfs_res['risk_score']:.4f}")
+            st.markdown(f"**Risk score: {pfs_res['risk_score']:.4f}** &nbsp;(cutoff = 6.72)")
         if pfs_res.get("error"):
             st.warning(pfs_res["error"])
         st.markdown("</div>", unsafe_allow_html=True)
+
+    # Show features actually fed into each model
+    with st.expander("🔍 Features used by models (for debugging)", expanded=False):
+        dbg_os, dbg_pfs = st.columns(2)
+        with dbg_os:
+            st.markdown("**OS model inputs:**")
+            fu = os_res.get("features_used")
+            if fu:
+                for k, v in fu.items():
+                    st.text(f"  {k} = {v:.6f}")
+        with dbg_pfs:
+            st.markdown("**PFS model inputs:**")
+            fu = pfs_res.get("features_used")
+            if fu:
+                for k, v in fu.items():
+                    st.text(f"  {k} = {v:.6f}")
 
     # Survival curves in cards
     st.markdown("### 📉 Personalized survival curves")
@@ -364,7 +380,21 @@ if run_button:
             plt.close(fig_pfs)
             st.markdown("</div>", unsafe_allow_html=True)
 
-    st.success("Analysis complete. Risk groups are derived from the RSF model risk score. Survival curves show the model-predicted survival probability over time (months).")
+    # Key survival probabilities table
+    st.markdown("### 📊 Survival probability at key time points")
+    t_os = results["OS"].get("time_points")
+    s_os = results["OS"].get("survival_probs")
+    t_pfs = results["PFS"].get("time_points")
+    s_pfs = results["PFS"].get("survival_probs")
+    key_months = [12, 24, 36, 48, 60]
+    prob_data = {"Time (months)": key_months}
+    if t_os is not None and s_os is not None:
+        prob_data["OS survival"] = [f"{np.interp(m, t_os, s_os):.1%}" for m in key_months]
+    if t_pfs is not None and s_pfs is not None:
+        prob_data["PFS survival"] = [f"{np.interp(m, t_pfs, s_pfs):.1%}" for m in key_months]
+    st.dataframe(pd.DataFrame(prob_data).set_index("Time (months)"), use_container_width=True)
+
+    st.success("Analysis complete. Risk groups are based on the training-set median cutoff. Survival curves are personalized to this patient's body composition features.")
 
 # Footer
 st.sidebar.markdown("---")
